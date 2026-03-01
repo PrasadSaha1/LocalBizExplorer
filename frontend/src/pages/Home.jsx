@@ -5,6 +5,10 @@ import { useState, useRef } from 'react';
 import BusinessDisplay from '../components/BusinessDisplay'
 import { Link } from "react-router-dom";
 import api from '../api';
+import { jsPDF } from "jspdf";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+
 
 function AccountButtons({ isLoggedIn }) {
     // If not logged in show information about creating an account or logging ing
@@ -35,6 +39,62 @@ export default function Home() {
     const businessTypeRef = useRef(null);
     const businessLocationRef = useRef(null);
     const numBusinessRef = useRef(null);
+
+    const generatePDF = async () => {
+        const doc = new jsPDF();
+        let y = 55; // initial vertical position for first business
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const centerX = pageWidth / 2;
+        const pageHeight = 280; // page height limit
+
+        const businessType = businessTypeRef.current.value || "N/A";
+        const zipcode = businessLocationRef.current.value || "N/A";
+
+        // Add header
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("LocalBizExplorer Report", centerX, 15, { align: "center" });
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Business Type: ${businessType}`, centerX, 22, { align: "center" });
+        doc.text(`Zipcode: ${zipcode}`, centerX, 27, { align: "center" });
+
+        doc.setFontSize(18);
+        doc.setFont("helvetica", "bold");
+        doc.text("Businesses Found", centerX, 40, { align: "center" })
+
+        for (let i = 0; i < businesses.length; i++) {
+            const business = businesses[i];
+
+            // Page break 
+            if (y > pageHeight) {
+                doc.addPage();
+                y = 25; // reset starting y for businesses
+            }
+
+            // Drawing a box around the text
+            doc.setDrawColor(0);
+            doc.setLineWidth(0.5);
+            doc.rect(5, y - 7, 200, 40, "S"); // x, y, width, height
+
+            // Business Name
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text(business.name || "No Name", 10, y);
+
+            // Business info
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Address: ${business.address || "N/A"}`, 10, y + 7);
+            doc.text(`Phone: ${business.phone_number || "N/A"}`, 10, y + 14);
+            doc.text(`Website: ${business.website || "N/A"}`, 10, y + 21);
+            doc.text(`Rating: ${business.average_rating_display || "N/A"} (${business.num_reviews || 0} reviews)`, 10, y + 28);
+
+            y += 50; // space before next business
+        }
+        doc.save("businesses.pdf");
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();  // prevent submission in cases there are errors
@@ -166,8 +226,16 @@ export default function Home() {
                 </form>
                 {loading && <div>Loading...</div>}  
             </div>
-            <div
-            style={{display: "grid",rowGap: "20px"}}>
+
+{businesses.length > 0 && (
+  <div style={{ textAlign: "center", marginBottom: "2rem", display: "flex", gap: "10px", justifyContent: "center" }}>
+    <button className="btn btn-warning" onClick={generatePDF}>Create PDF</button>
+  </div>
+)}
+
+
+
+            <div style={{display: "grid",rowGap: "20px"}}>
             {businesses.map((business, index) => (
             <div key={index}>
                 <BusinessDisplay business={business} />

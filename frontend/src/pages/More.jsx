@@ -9,6 +9,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import BusinessDisplay from "../components/BusinessDisplay";
 import LoadingIndicator from "../components/LoadingIndicator";
 import BackButton from "../components/BackButton";
+import { jsPDF } from "jspdf";
 
 function Review({ review, yourReview, setResetView }) {
   const deleteReview = async (reviewId) => {
@@ -223,6 +224,7 @@ function More() {
 
     <BusinessDisplay business={business} resetView={resetView}/>
     <ShowLeaveReview isLoggedIn={isAuthenticated()} business={business} resetView={resetView} setResetView={setResetView}/>
+
 
     <div style={{ marginTop: "40px" }}>
     <h1>All Reviews</h1>

@@ -365,6 +365,7 @@ def fetch_average_rating_and_save_status(request):
     try:
         business = GlobalBusiness.objects.get(id=business_id)
         stats = business.reviews.aggregate(num_reviews=Count('id'),average_rating=Avg('rating'))  # summarizes review info about the business
+        
         if request.user.is_authenticated:
             is_saved = SavedBusiness.objects.filter(user=request.user,business_id=business_id).exists()
         else:
