@@ -7,6 +7,8 @@ import { useState, useEffect } from "react";
 import LoadingIndicator from "../components/LoadingIndicator";
 import { isAuthenticated } from "./checkAuth";
 import jsPDF from "jspdf";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 function saveBusiness({business, setIsSaved}) {
     const res = api.post("https://business-search-s130.onrender.com/api/save_business/",
@@ -32,13 +34,13 @@ function BusinessDisplay({ business, resetView = null }) {
 
   const [reviewsPage_numReviews, setReviewsPage_numReviews] = useState(0);
   const [reviewsPage_averageRating, setReviewsPage_averageRating] = useState("");
-  const [makingPDF, setMakingPDF] = useState(false);
+  const [makingReport, setMakingReport] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(null);
 
-  const generatePDF = async (business, setMakingPDF) => {
-    setMakingPDF(true);
+  const generatePDF = async (business, setMakingReport) => {
+    setMakingReport(true);
     const res = await api.get(`https://business-search-s130.onrender.com/api/businesses/${business.id}/reviews/`);
     const reviews = res.data;
 
@@ -100,7 +102,70 @@ function BusinessDisplay({ business, resetView = null }) {
     }
 
     doc.save(`${business.name}-report.pdf`);
-    setMakingPDF(false);
+    setMakingReport(false);
+  };
+
+  const exportToExcel = async (business, setMakingReport) => {
+    setMakingReport(true);
+
+    // Fetch reviews
+    const res = await api.get(`https://business-search-s130.onrender.com/api/businesses/${business.id}/reviews/`);
+    const reviews = res.data;
+
+    // Header info (search info can be added if needed)
+    const businessInfo = [
+      { Field: "Business Name", Value: business.name },
+      { Field: "Address", Value: business.address },
+      { Field: "Phone", Value: business.phone_number || "N/A" },
+      { Field: "Website", Value: business.website || "N/A" },
+      { Field: "Rating", Value: `${business.average_rating_display || "N/A"} (${business.num_reviews || 0} reviews)` },
+    ];
+
+    const ws1 = XLSX.utils.json_to_sheet(businessInfo, { header: ["Field", "Value"] });
+
+    // Reviews
+    const reviewData = reviews.map(r => ({
+      Reviewer: r.name,
+      Rating: r.rating,
+      Review: r.review_text,
+      Posted: new Date(r.created_at).toLocaleString()
+    }));
+    const ws2 = XLSX.utils.json_to_sheet(reviewData);
+
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws1, "Business Info");
+    XLSX.utils.book_append_sheet(wb, ws2, "Reviews");
+
+    XLSX.writeFile(wb, `${business.name}-report.xlsx`);
+    setMakingReport(false);
+  };
+
+  // Export to CSV
+  const exportToCSV = async (business, setMakingReport) => {
+    setMakingReport(true);
+
+    const res = await api.get(`https://business-search-s130.onrender.com/api/businesses/${business.id}/reviews/`);
+    const reviews = res.data;
+
+    const header = ["Business Name", "Address", "Phone", "Website", "Rating"];
+    const businessRow = [[business.name, business.address, business.phone_number || "N/A", business.website || "N/A", `${business.average_rating_display || "N/A"} (${business.num_reviews || 0} reviews)`]];
+
+    const reviewHeader = ["Reviewer", "Rating", "Review", "Posted"];
+    const reviewRows = reviews.map(r => [r.name, r.rating, r.review_text, new Date(r.created_at).toLocaleString()]);
+
+    // Combine all rows
+    const csvContent = [
+      header.join(","), 
+      ...businessRow.map(r => r.map(val => `"${val}"`).join(",")),
+      "", // empty line
+      reviewHeader.join(","),
+      ...reviewRows.map(r => r.map(val => `"${val}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    saveAs(blob, `${business.name}-report.csv`);
+    setMakingReport(false);
   };
 
   useEffect(() => {
@@ -179,10 +244,6 @@ function BusinessDisplay({ business, resetView = null }) {
       </Link>
     )}
 
-    <button className="btn btn-info btn-md" onClick={() => generatePDF(business, setMakingPDF)}>
-        Create PDF
-      </button>
-
     {/* Save / Unsave or Login Prompt */}
     {!isLoggedIn ? (
       <div>
@@ -206,8 +267,21 @@ function BusinessDisplay({ business, resetView = null }) {
 
   </div>
 
-  {makingPDF && (<div style={{ textAlign: "center", marginTop: "20px" }}>
-      <p>Making PDF...</p>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "15px" }}>
+    <button className="btn btn-warning btn-md" onClick={() => generatePDF(business, setMakingReport)}>
+      Create PDF
+    </button>
+    <button className="btn btn-success btn-md" onClick={() => exportToExcel(business, setMakingReport)}>
+      Export Excel
+    </button>
+    <button className="btn btn-info btn-md" onClick={() => exportToCSV(business, setMakingReport)}>
+      Export CSV
+    </button>
+  </div>
+
+
+  {makingReport && (<div style={{ textAlign: "center", marginTop: "20px" }}>
+      <p>Making Report...</p>
     </div>)}
 
       </div>

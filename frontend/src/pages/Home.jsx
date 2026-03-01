@@ -36,6 +36,10 @@ export default function Home() {
     const [businesses, setBusinesses] = useState([]);
     const [loading, setLoading] = useState(false);
 
+    // These are for output reports
+    const [businessTypeSearched, setBusinessTypeSearched] = useState("");
+    const [businessLocationSearched, setBusinessLocationSearched] = useState("");
+
     const businessTypeRef = useRef(null);
     const businessLocationRef = useRef(null);
     const numBusinessRef = useRef(null);
@@ -47,9 +51,6 @@ export default function Home() {
         const centerX = pageWidth / 2;
         const pageHeight = 280; // page height limit
 
-        const businessType = businessTypeRef.current.value || "N/A";
-        const zipcode = businessLocationRef.current.value || "N/A";
-
         // Add header
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
@@ -57,8 +58,8 @@ export default function Home() {
 
         doc.setFontSize(12);
         doc.setFont("helvetica", "normal");
-        doc.text(`Business Type: ${businessType}`, centerX, 22, { align: "center" });
-        doc.text(`Zipcode: ${zipcode}`, centerX, 27, { align: "center" });
+        doc.text(`Business Type: ${businessTypeSearched}`, centerX, 22, { align: "center" });
+        doc.text(`Zipcode: ${businessLocationSearched}`, centerX, 27, { align: "center" });
 
         doc.setFontSize(18);
         doc.setFont("helvetica", "bold");
@@ -96,6 +97,56 @@ export default function Home() {
         doc.save("businesses.pdf");
     };
 
+    const exportToExcel = () => {
+        // Add header row with search info
+        const headerRow = [
+            { Header: "Business Type", Value: businessTypeSearched },
+            { Header: "Zipcode", Value: businessLocationSearched }
+        ];
+
+        const data = businesses.map(business => ({
+            Name: business.name || "N/A",
+            Address: business.address || "N/A",
+            Phone: business.phone_number || "N/A",
+            Website: business.website || "N/A",
+            "Average Rating": business.average_rating_display || "N/A",
+            "Number of Reviews": business.num_reviews || 0,
+        }));
+
+        const workbook = XLSX.utils.book_new();
+
+        // Add search info sheet
+        const headerSheet = XLSX.utils.json_to_sheet(headerRow);
+        XLSX.utils.book_append_sheet(workbook, headerSheet, "Search Info");
+
+        // Add businesses sheet
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Businesses");
+
+        XLSX.writeFile(workbook, "businesses.xlsx");
+    };
+
+    const exportToCSV = () => {
+        const data = [
+            { "Business Type": businessTypeSearched, "Zipcode": businessLocationSearched },
+            ...businesses.map(business => ({
+            Name: business.name || "N/A",
+            Address: business.address || "N/A",
+            Phone: business.phone_number || "N/A",
+            Website: business.website || "N/A",
+            "Average Rating": business.average_rating_display || "N/A",
+            "Number of Reviews": business.num_reviews || 0,
+            }))
+        ];
+
+        const worksheet = XLSX.utils.json_to_sheet(data);
+        const csv = XLSX.utils.sheet_to_csv(worksheet);
+
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        saveAs(blob, "businesses.csv");
+    };
+
+
     const handleSubmit = async (e) => {
         e.preventDefault();  // prevent submission in cases there are errors
 
@@ -121,6 +172,9 @@ export default function Home() {
         setErrors({});  // Clear errors and businesses
         setBusinesses([]); 
         setLoading(true);
+
+        setBusinessTypeSearched(businessType);
+        setBusinessLocationSearched(zipcode);
 
         const params = {query: `${businessType} ${zipcode}`, limit: Number(numBusinesses),};
         const toQueryString = (params) => new URLSearchParams(params).toString();  // formats the data into a string
@@ -230,6 +284,8 @@ export default function Home() {
 {businesses.length > 0 && (
   <div style={{ textAlign: "center", marginBottom: "2rem", display: "flex", gap: "10px", justifyContent: "center" }}>
     <button className="btn btn-warning" onClick={generatePDF}>Create PDF</button>
+    <button className="btn btn-success" onClick={exportToExcel}>Export Excel</button>
+    <button className="btn btn-info" onClick={exportToCSV}>Export CSV</button>
   </div>
 )}
 
