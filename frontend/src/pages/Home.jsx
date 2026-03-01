@@ -35,6 +35,7 @@ export default function Home() {
     const [errors, setErrors] = useState({});
     const [businesses, setBusinesses] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [sortOption, setSortOption] = useState("");
 
     // These are for output reports
     const [businessTypeSearched, setBusinessTypeSearched] = useState("");
@@ -227,12 +228,33 @@ export default function Home() {
             setBusinesses(filtered_data);
             setLoading(false);
 
-
         } catch (err) {
             // Catch all for errors (ie. Rate limited by API)
             console.error("API call failed:", err);
         }
     };
+
+    const sortedBusinesses = [...businesses].sort((a, b) => {
+        // business.average_rating_display is "4.0/5", so this parses the data
+        const getRating = (business) => parseFloat(business.average_rating_display) || 0;
+
+        switch (sortOption) {
+            case "ratingHigh":
+                return getRating(b) - getRating(a);
+            case "ratingLow":
+                return getRating(a) - getRating(b);;
+            case "reviewsHigh":
+                return b.num_reviews - a.num_reviews;
+            case "reviewsLow":
+                return a.num_reviews - b.num_reviews;
+            case "nameAZ":
+                return a.name.localeCompare(b.name);
+            case "nameZA":
+                return b.name.localeCompare(a.name);
+            default:
+                return 0;
+        }
+    });
 
 
     return (
@@ -281,18 +303,38 @@ export default function Home() {
                 {loading && <div>Loading...</div>}  
             </div>
 
-{businesses.length > 0 && (
-  <div style={{ textAlign: "center", marginBottom: "2rem", display: "flex", gap: "10px", justifyContent: "center" }}>
-    <button className="btn btn-warning" onClick={generatePDF}>Create PDF</button>
-    <button className="btn btn-success" onClick={exportToExcel}>Export Excel</button>
-    <button className="btn btn-info" onClick={exportToCSV}>Export CSV</button>
-  </div>
-)}
+            {businesses.length > 0 && (
+            <div style={{ textAlign: "center", marginBottom: "2rem", display: "flex", gap: "10px", justifyContent: "center" }}>
+                <button className="btn btn-warning" onClick={generatePDF}>Create PDF</button>
+                <button className="btn btn-success" onClick={exportToExcel}>Export Excel</button>
+                <button className="btn btn-info" onClick={exportToCSV}>Export CSV</button>
+            </div>
+            )}
+
+            {businesses.length > 0 && (
+                <div style={{ textAlign: "center", marginBottom: "20px" }}>
+                    <select
+                    className="form-select"
+                    style={{ maxWidth: "300px", margin: "0 auto" }}
+                    value={sortOption}
+                    onChange={(e) => setSortOption(e.target.value)}
+                    >
+                    <option value="">Sort By</option>
+                    <option value="ratingHigh">Rating (High → Low)</option>
+                    <option value="ratingLow">Rating (Low → High)</option>
+                    <option value="reviewsHigh">Most Reviews</option>
+                    <option value="reviewsLow">Least Reviews</option>
+                    <option value="nameAZ">Name (A → Z)</option>
+                    <option value="nameZA">Name (Z → A)</option>
+                    </select>
+                </div>
+                )}
+
 
 
 
             <div style={{display: "grid",rowGap: "20px"}}>
-            {businesses.map((business, index) => (
+            {sortedBusinesses.map((business, index) => (
             <div key={index}>
                 <BusinessDisplay business={business} />
             </div>

@@ -15,6 +15,8 @@ function ForgotUsernameForm() {
         } catch (err) {
             if (err.status === 404){  // Not Found from backend
                 toast.error("No account found with this email address.");
+            } else { // Catch all
+                toast.error("An unknown error occured")
             }
         }
 

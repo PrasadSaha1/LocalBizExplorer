@@ -9,44 +9,63 @@ import 'react-toastify/dist/ReactToastify.css';
 import BusinessDisplay from "../components/BusinessDisplay";
 import LoadingIndicator from "../components/LoadingIndicator";
 import BackButton from "../components/BackButton";
-import { jsPDF } from "jspdf";
 
-function Review({ review, yourReview, setResetView }) {
+function Review({ review, yourReview, setResetView, setDeletingReview, deletingReview, loadingPage_createReview }) {
   const deleteReview = async (reviewId) => {
     const confirmed = window.confirm("Are you sure you want to delete this review?");
     if (!confirmed) return;
-      await api.post('https://business-search-s130.onrender.com/api/delete_review/', { review_id: reviewId });
-      toast.success("Review deleted!");
-      setResetView(prev => !prev); 
-    }
+
+    setDeletingReview(true);
+
+    await api.post(
+      "https://business-search-s130.onrender.com/api/delete_review/",
+      { review_id: reviewId }
+    );
+
+    toast.success("Review deleted!");
+    setResetView((prev) => !prev);
+    setDeletingReview(false);
+  };
 
   return (
-    <div
-      key={review.id}
-      style={{
-        border: "1px solid #ccc",
-        marginBottom: "10px",
-        padding: "10px",
-        borderRadius: "8px",
-      }}
-    >
-      <p>
-        <strong>{review.name}</strong> rated: {review.rating}/5
-      </p>
-      <p>{review.review_text}</p>
-      <small>{new Date(review.created_at).toLocaleString()}</small>
-      {yourReview && (
-        <button
-          className="btn btn-danger btn-sm"
-          style={{ display: "block", marginTop: "10px" }}
-          onClick={() => deleteReview(review.id)}
+    <>
+      {yourReview && loadingPage_createReview ? (
+        <LoadingIndicator />
+      ) : (
+        <div
+          key={review.id}
+          style={{
+            border: "1px solid #ccc",
+            marginBottom: "10px",
+            padding: "10px",
+            borderRadius: "8px",
+          }}
         >
-          Delete Review
-        </button>
+          <p>
+            <strong>{review.name}</strong> rated: {review.rating}/5
+          </p>
+          <p>{review.review_text}</p>
+          <small>{new Date(review.created_at).toLocaleString()}</small>
+
+          {yourReview && (
+            <>
+              <button
+                className="btn btn-danger btn-sm"
+                style={{ display: "block", marginTop: "10px" }}
+                onClick={() => deleteReview(review.id)}
+              >
+                Delete Review
+              </button>
+
+              {deletingReview && <div>Deleting Review...</div>}
+            </>
+          )}
+        </div>
       )}
-    </div>
+    </>
   );
 }
+
 
 
 function ShowLeaveReview({isLoggedIn, business, resetView, setResetView}) {
@@ -58,18 +77,32 @@ function ShowLeaveReview({isLoggedIn, business, resetView, setResetView}) {
     const [loadingPage_createReview, setLoadingPage_createReview] = useState(true);
     const [errors, setErrors] = useState({});
     const [previousReview, setPreviousReview] = useState(false); 
+    const [deletingReview, setDeletingReview] = useState(false);
+
+    // The CAPTCHA works by having users solve a basic math problem to verify that they aren't a robot.
+    const [captchaQuestion, setCaptchaQuestion] = useState("");
+    const [captchaAnswer, setCaptchaAnswer] = useState("");
+    const [captchaInput, setCaptchaInput] = useState("");
+
+    const generateCaptcha = () => {
+      const num1 = Math.floor(Math.random() * 100);
+      const num2 = Math.floor(Math.random() * 100);
+      setCaptchaQuestion(`${num1} + ${num2}`);
+      setCaptchaAnswer((num1 + num2).toString());
+    };
 
     useEffect(() => {
         if (isLoggedIn) {
-        const checkReview = async () => {
-            setLoadingPage_createReview(true);
-            const res = await api.post("https://business-search-s130.onrender.com/api/check_if_review_left/",
-            { business_id: business.id });
-            setPreviousReview(res.data.review);
-            setLoadingPage_createReview(false);
-        };
-        checkReview();
+          const checkReview = async () => {
+              setLoadingPage_createReview(true);
+              const res = await api.post("https://business-search-s130.onrender.com/api/check_if_review_left/",
+              { business_id: business.id });
+              setPreviousReview(res.data.review);
+              setLoadingPage_createReview(false);
+          };
+          checkReview();
         }
+        generateCaptcha();
     }, [business.id, isLoggedIn, resetView]);
 
 
@@ -78,6 +111,7 @@ function ShowLeaveReview({isLoggedIn, business, resetView, setResetView}) {
         if (!rating) newErrors.rating = "Rating is required.";
         if (!name) newErrors.name = "Name is required.";
         if (!reviewText) newErrors.reviewText = "Review is required.";
+        if (captchaInput !== captchaAnswer) newErrors.captcha = "Incorrect CAPTCHA.";
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
@@ -97,6 +131,8 @@ function ShowLeaveReview({isLoggedIn, business, resetView, setResetView}) {
             review_text: reviewText,
         })
         setSendingReview(false);
+        generateCaptcha();
+        setCaptchaInput("");
         toast.success("Review sent!")
         setResetView(prev => !prev);
     }
@@ -105,7 +141,8 @@ function ShowLeaveReview({isLoggedIn, business, resetView, setResetView}) {
         if (previousReview){
             return <div style={{marginTop: "30px"}}>
                 <h1>Your Review</h1>
-                <Review review={previousReview} yourReview={true} setResetView={setResetView}/>
+                <Review review={previousReview} yourReview={true} setResetView={setResetView} setDeletingReview={setDeletingReview}
+                 deletingReview={deletingReview} loadingPage_createReview={loadingPage_createReview}/>
             </div>
         } else {
         if (loadingPage_createReview){
@@ -185,6 +222,22 @@ function ShowLeaveReview({isLoggedIn, business, resetView, setResetView}) {
             {errors.reviewText && <p className="text-danger">{errors.reviewText}</p>}
         </div>
 
+        <div style={{ marginBottom: "15px" }}>
+          <label style={{ fontWeight: "bold" }}>
+            CAPTCHA: What is {captchaQuestion}?
+          </label>
+          <input
+            type="text"
+            placeholder="Enter answer"
+            value={captchaInput}
+            onChange={(e) => setCaptchaInput(e.target.value)}
+            style={{width: "100%", padding: "10px", borderRadius: "5px", border: "1px solid #ccc", marginTop: "5px",
+            }}
+          />
+          {errors.captcha && <p className="text-danger">{errors.captcha}</p>}
+        </div>
+
+
         <div style={{ textAlign: "center" }}>
           <button className="btn btn-primary btn-md" onClick={submitReview}>Submit Review</button>
         </div>
@@ -223,7 +276,7 @@ function More() {
     <BackButton />
 
     <BusinessDisplay business={business} resetView={resetView}/>
-    <ShowLeaveReview isLoggedIn={isAuthenticated()} business={business} resetView={resetView} setResetView={setResetView}/>
+    <ShowLeaveReview isLoggedIn={isAuthenticated()} business={business} resetView={resetView} setResetView={setResetView} />
 
 
     <div style={{ marginTop: "40px" }}>
@@ -234,7 +287,7 @@ function More() {
             <p>No reviews yet. Be the first to review!</p>
         ) : (
             reviews.map((review) => (
-                <Review review={review} yourReview={false} setResetView={setResetView} />
+                <Review review={review} yourReview={false} setResetView={setResetView}/>
             ))
         )
     ): (

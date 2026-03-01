@@ -19,6 +19,7 @@ from django.db.models import Avg, Count
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from django.views.decorators.csrf import csrf_exempt
 # In every view, api_view["GET"] means that the data will be viewed, while POST means that data will be created 
 # permissions_classes[IsAuthenticated] means that the user must be logged in to access the view, while AllowAny means that anyone can access the view
 
@@ -94,6 +95,7 @@ def user_view(request):
     return Response({'id': user.id, 'username': user.username, 'email': user.email})
 
 @api_view(['POST'])
+@csrf_exempt
 @permission_classes([AllowAny])
 def forgot_username(request):
     email = request.data.get('email')
@@ -108,13 +110,16 @@ def forgot_username(request):
     recipient = email
 
     # sends an email to the user
-    send_mail(
-        subject,
-        message,
-        settings.DEFAULT_FROM_EMAIL,
-        [recipient],
-        fail_silently=False,
-    )
+    try:
+        send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [recipient],
+            fail_silently=False,
+        )
+    except:
+        return Response({"Error": "unknown"}, status=400)
 
     return Response({"success": "Email sent to user"})
 
@@ -243,14 +248,17 @@ def change_email(request):
         return Response({'detail': 'Email changed successfully'})
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
 def contact_us(request):
     # Used to allow the users to send an email to the website
-    email = request.data.get("email")
+    email = request.data.get("email")  # They would be contacted from this email
     subject = request.data.get("subject")
     message = request.data.get("message")
 
-    final_message = f"Username: {request.user.username}\nEmail: {email} \nmessage: {message}"
+    if request.user.is_authenicated:
+        final_message = f"Username: {request.user.username}\nEmail: {email} \nmessage: {message}"
+    else:
+        final_message = f"Username: N/A\nEmail: {email} \nmessage: {message}"
 
     send_mail(
         subject,
@@ -287,7 +295,7 @@ def view_business_rating(request):
             if business.num_reviews == 0:  # if no reviews
                 business_review_data.append({"num_reviews": 0, "average_rating_display": "N/A"})
             else:  # a dictionary with the information
-                business_review_data.append({"num_reviews": business.num_reviews, "average_rating_display": f"{business.avg_rating} / 5"})
+                business_review_data.append({"num_reviews": business.num_reviews, "average_rating_display":f"{business.avg_rating:.2f} / 5"})
         else:
             business_review_data.append({"num_reviews": 0, "average_rating_display": "N/A"})
 

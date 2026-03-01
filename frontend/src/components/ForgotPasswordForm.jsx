@@ -16,6 +16,8 @@ function ForgotPasswordForm() {
                 toast.error("No email associated with this username.");
             } else if (err.status === 400) {  // Bad Request from backend
                 toast.error("Username does not exist");
+            } else { // Catch all 
+                toast.error("An unknown error occured")
             }
         }
 
