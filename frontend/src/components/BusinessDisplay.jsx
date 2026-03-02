@@ -39,7 +39,7 @@ function BusinessDisplay({ business, resetView = null }) {
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(null);
 
-  const generatePDF = async (business, setMakingReport) => {
+  const generatePDF = async (business, setMakingReport, reviewsPage_averageRating, reviewsPage_numReviews) => {
     setMakingReport(true);
     const res = await api.get(`https://business-search-s130.onrender.com/api/businesses/${business.id}/reviews/`);
     const reviews = res.data;
@@ -60,7 +60,9 @@ function BusinessDisplay({ business, resetView = null }) {
     doc.text(`Address: ${business.address}`, centerX, 38, { align: "center" });
     doc.text(`Phone: ${business.phone_number || "N/A"}`, centerX, 44, { align: "center" });
     doc.text(`Website: ${business.website || "N/A"}`, centerX, 50, { align: "center" });
-    doc.text(`Rating: ${business.average_rating_display || "N/A"} (${business.num_reviews || 0} reviews)`, centerX, 56, { align: "center" });
+
+    // The dynamics ones are being used in case the user adds a review before making the PDF.
+    doc.text(`Rating: ${reviewsPage_averageRating || "N/A"} (${reviewsPage_numReviews || 0} reviews)`, centerX, 56, { align: "center" });
 
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
@@ -237,73 +239,73 @@ function BusinessDisplay({ business, resetView = null }) {
       </p>
 
       {/* If it's on the reviews page (more), show the dynamic ones, else, show the ones from the database */}
-<div style={{ marginTop: "20px" }}>
-  {/* Reviews Info */}
-  <div style={{ marginBottom: "15px" }}>
-    {location !== "/more" ? (
-      <>
-        <p><strong>Number of Reviews:</strong> {business.num_reviews}</p>
-        <p><strong>Average Rating:</strong> {business.average_rating_display}</p>
-      </>
-    ) : (
-      <>
-        <p><strong>Number of Reviews:</strong> {reviewsPage_numReviews}</p>
-        <p><strong>Average Rating:</strong> {reviewsPage_averageRating}</p>
-      </>
-    )}
-  </div>
+      <div style={{ marginTop: "20px" }}>
+        {/* Reviews Info */}
+        <div style={{ marginBottom: "15px" }}>
+          {location !== "/more" ? (
+            <>
+              <p><strong>Number of Reviews:</strong> {business.num_reviews}</p>
+              <p><strong>Average Rating:</strong> {business.average_rating_display}</p>
+            </>
+          ) : (
+            <>
+              <p><strong>Number of Reviews:</strong> {reviewsPage_numReviews}</p>
+              <p><strong>Average Rating:</strong> {reviewsPage_averageRating}</p>
+            </>
+          )}
+        </div>
 
-  {/* Action Buttons */}
-  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center" }}>
-    {/* View Reviews Button */}
-    {location !== "/more" && (
-      <Link to="/more" state={{ business }}>
-        <button className="btn btn-primary btn-md">View Reviews</button>
-      </Link>
-    )}
+        {/* Action Buttons */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center" }}>
+          {/* View Reviews Button */}
+          {location !== "/more" && (
+            <Link to="/more" state={{ business }}>
+              <button className="btn btn-primary btn-md">View Reviews</button>
+            </Link>
+          )}
 
-    {/* Save / Unsave or Login Prompt */}
-    {!isLoggedIn ? (
-      <div>
-        <Link to="/register">Create an Account</Link> or <Link to="/login">Log In</Link> to leave save this business!
-      </div>
-    ) : isSaved ? (
-      <button
-        className="btn btn-warning btn-md"
-        onClick={() => unsaveBusiness({ business, setIsSaved })}
-      >
-        Unsave
-      </button>
-    ) : (
-      <button
-        className="btn btn-success btn-md"
-        onClick={() => saveBusiness({ business, setIsSaved })}
-      >
-        Save
-      </button>
-    )}
+          {/* Save / Unsave or Login Prompt */}
+          {!isLoggedIn ? (
+            <div>
+              <Link to="/register">Create an Account</Link> or <Link to="/login">Log In</Link> to leave save this business!
+            </div>
+          ) : isSaved ? (
+            <button
+              className="btn btn-warning btn-md"
+              onClick={() => unsaveBusiness({ business, setIsSaved })}
+            >
+              Unsave
+            </button>
+          ) : (
+            <button
+              className="btn btn-success btn-md"
+              onClick={() => saveBusiness({ business, setIsSaved })}
+            >
+              Save
+            </button>
+          )}
 
-  </div>
+        </div>
 
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "15px" }}>
-    <button className="btn btn-warning btn-md" onClick={() => generatePDF(business, setMakingReport)}>
-      Create PDF
-    </button>
-    <button className="btn btn-success btn-md" onClick={() => exportToExcel(business, setMakingReport)}>
-      Export Excel
-    </button>
-    <button className="btn btn-info btn-md" onClick={() => exportToCSV(business, setMakingReport)}>
-      Export CSV
-    </button>
-  </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "15px" }}>
+          <button className="btn btn-warning btn-md" onClick={() => generatePDF(business, setMakingReport, reviewsPage_averageRating, reviewsPage_numReviews)}>
+            Create PDF
+          </button>
+          <button className="btn btn-success btn-md" onClick={() => exportToExcel(business, setMakingReport)}>
+            Export Excel
+          </button>
+          <button className="btn btn-info btn-md" onClick={() => exportToCSV(business, setMakingReport)}>
+            Export CSV
+          </button>
+        </div>
 
 
-  {makingReport && (<div style={{ textAlign: "center", marginTop: "20px" }}>
-      <p>Making Report...</p>
-    </div>)}
+        {makingReport && (<div style={{ textAlign: "center", marginTop: "20px" }}>
+            <p>Making Report...</p>
+          </div>)}
 
-      </div>
-    </div>
+            </div>
+          </div>
   );
 }
 
