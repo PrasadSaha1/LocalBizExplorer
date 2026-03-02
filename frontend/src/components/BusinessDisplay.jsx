@@ -61,7 +61,7 @@ function BusinessDisplay({ business, resetView = null }) {
     doc.text(`Phone: ${business.phone_number || "N/A"}`, centerX, 44, { align: "center" });
     doc.text(`Website: ${business.website || "N/A"}`, centerX, 50, { align: "center" });
 
-    // The dynamics ones are being used in case the user adds a review before making the PDF.
+    // The dynamic ones are being used in case the user adds a review before making the PDF.
     doc.text(`Rating: ${reviewsPage_averageRating || "N/A"} (${reviewsPage_numReviews || 0} reviews)`, centerX, 56, { align: "center" });
 
     doc.setFontSize(18);
