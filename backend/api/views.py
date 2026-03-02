@@ -381,7 +381,7 @@ def fetch_average_rating_and_save_status(request):
 
         if stats["num_reviews"] == 0:  # called here to allow for average_rating to be N/A instead of an erroneous 0/5
             return Response({"num_reviews": 0, "average_rating": "N/A", "is_saved": is_saved})
-        average_rating = f"{stats['average_rating']} / 5"
+        average_rating = f"{stats['average_rating']:.2f} / 5"
         return Response({"num_reviews": stats["num_reviews"], "average_rating": average_rating, "is_saved": is_saved})
     except GlobalBusiness.DoesNotExist:  # if the business isn't in the Database
          return Response({"num_reviews": 0, "average_rating": "N/A", "is_saved": False})

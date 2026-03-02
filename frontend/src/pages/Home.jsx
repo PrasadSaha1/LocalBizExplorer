@@ -40,10 +40,7 @@ export default function Home() {
 
     // These are for output reports and saving data if returning from another page
     // Essentially, if there's stuff in the localStorage, that info is fetched
-    const [businesses, setBusinesses] = useState(() => {
-        const saved = localStorage.getItem("businesses");
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [businesses, setBusinesses] = useState([]);
 
     const [businessTypeSearched, setBusinessTypeSearched] = useState(() => {
         return localStorage.getItem("businessTypeSearched") || "";

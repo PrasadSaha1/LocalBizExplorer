@@ -56,5 +56,5 @@ class GlobalBusinessSerializer(serializers.ModelSerializer):
         """This turns the average rating from a number or null to a formatted string"""
         if obj.average_rating is None:
             return "N/A"
-        return f"{obj.average_rating}/5"
+        return f"{obj.average_rating:.2f}/5"
     
