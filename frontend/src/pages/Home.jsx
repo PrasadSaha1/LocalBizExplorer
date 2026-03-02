@@ -8,8 +8,8 @@ import api from '../api';
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import { FetchWithTimeout } from "../components/FetchWithTimeout";
 import { toast } from 'react-toastify';
+import { FetchWithTimeout } from "../components/FetchWithTimeout";
 import 'react-toastify/dist/ReactToastify.css';
 
 function AccountButtons({ isLoggedIn }) {
@@ -242,12 +242,17 @@ export default function Home() {
                 var business = {}
 
                 // If the business's Zipcode is far from expected, remove it (API error)
-                var businessZipcodeInt = parseInt(element.address.slice(-5));
-                if (!isNaN(businessZipcodeInt)) {
-                    if (businessZipcodeInt + 5000 < parseInt(zipcode) || businessZipcodeInt - 5000 > parseInt(zipcode)){
-                        continue;
+                // A catch-all try-catch is included in case the address is buggy.
+                try {
+                    if (element.address){
+                        var businessZipcodeInt = parseInt(element.address.slice(-5));
+                        if (!isNaN(businessZipcodeInt)) {
+                            if (businessZipcodeInt + 5000 < parseInt(zipcode) || businessZipcodeInt - 5000 > parseInt(zipcode)){
+                                continue;
+                            }
+                        }
                     }
-                }
+                } catch {}
 
                 
                 business.id = element.business_id;
@@ -282,7 +287,7 @@ export default function Home() {
 
         } catch (err) {
             // Catch all for errors (ie. Rate limited by API)
-            toast.error("Timed out after 10 seconds, please reload the page and try again.")
+            toast.error("An error occured, please reload and try again.")
             setLoading(false);
         }
     };
