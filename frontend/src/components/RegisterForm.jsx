@@ -20,20 +20,36 @@ function RegisterForm() {
         }
 
         try {
-            await api.post("api/user/register/", { username, password, confirmPassword, email });
-            const loginRes = await api.post("api/token/", { username, password });
+            await api.post(
+                "api/user/register/",
+                { username, password, confirmPassword, email },
+                { timeout: 10000 } // 10 seconds
+            );
+
+            // Login request with 10-second timeout
+            const loginRes = await api.post(
+                "api/token/",
+                { username, password },
+                { timeout: 10000 } // 10 seconds
+            );
+
             localStorage.setItem(ACCESS_TOKEN, loginRes.data.access);
             localStorage.setItem(REFRESH_TOKEN, loginRes.data.refresh);
 
-            toast.success("Account Created successfully!")
+            toast.success("Account Created successfully!");
             navigate('/');
         } catch (err) {
-            const data = err.response?.data;
-            if (data?.username) toast.error(data.username[0]); // if username is taken
-            else if (data?.email) toast.error(data.email[0]); // if email is invalid (note that email is optional)
-            else toast.error("An unknown error occurred"); // catch other errors
+            if (err.code === 'ECONNABORTED') {
+                toast.error("Request timed out. Please reload the page and try again.");
+            } else {
+                const data = err.response?.data;
+                if (data?.username) toast.error(data.username[0]); // if username is taken
+                else if (data?.email) toast.error(data.email[0]); // if email is invalid
+                else toast.error("An unknown error occurred");
+            }
         }
     };
+
 
     return (
         <GeneralForm

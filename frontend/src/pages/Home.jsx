@@ -1,14 +1,16 @@
 import "../styles/Home.css";
 import Base from '../components/Base';
 import { isAuthenticated } from '../components/checkAuth';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import BusinessDisplay from '../components/BusinessDisplay'
 import { Link } from "react-router-dom";
 import api from '../api';
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-
+import { FetchWithTimeout } from "../components/FetchWithTimeout";
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 function AccountButtons({ isLoggedIn }) {
     // If not logged in show information about creating an account or logging ing
@@ -33,13 +35,46 @@ function AccountButtons({ isLoggedIn }) {
 
 export default function Home() {
     const [errors, setErrors] = useState({});
-    const [businesses, setBusinesses] = useState([]);
     const [loading, setLoading] = useState(false);
     const [sortOption, setSortOption] = useState("");
 
-    // These are for output reports
-    const [businessTypeSearched, setBusinessTypeSearched] = useState("");
-    const [businessLocationSearched, setBusinessLocationSearched] = useState("");
+    // These are for output reports and saving data if returning from another page
+    // Essentially, if there's stuff in the localStorage, that info is fetched
+    const [businesses, setBusinesses] = useState(() => {
+        const saved = localStorage.getItem("businesses");
+        return saved ? JSON.parse(saved) : [];
+    });
+
+    const [businessTypeSearched, setBusinessTypeSearched] = useState(() => {
+        return localStorage.getItem("businessTypeSearched") || "";
+    });
+
+    const [businessLocationSearched, setBusinessLocationSearched] = useState(() => {
+        return localStorage.getItem("businessLocationSearched") || "";
+    });
+
+    const [numBusinessesSearched, setNumBusinessesSearched] = useState(() => {
+        return localStorage.getItem("numBusinessesSearched") || ""; 
+    });
+
+    // each of these puts items into the local storage to be used later
+    useEffect(() => {
+        localStorage.setItem("businesses", JSON.stringify(businesses));
+    }, [businesses]);
+
+    useEffect(() => {
+        localStorage.setItem("businessTypeSearched", businessTypeSearched);
+    }, [businessTypeSearched]);
+
+    useEffect(() => {
+        localStorage.setItem("businessLocationSearched", businessLocationSearched);
+    }, [businessLocationSearched]);
+
+    useEffect(() => {
+        localStorage.setItem("numBusinessesSearched", numBusinessesSearched);
+    }, [numBusinessesSearched]);
+
+
 
     const businessTypeRef = useRef(null);
     const businessLocationRef = useRef(null);
@@ -176,13 +211,14 @@ export default function Home() {
 
         setBusinessTypeSearched(businessType);
         setBusinessLocationSearched(zipcode);
+        setNumBusinessesSearched(numBusinesses);
 
         const params = {query: `${businessType} ${zipcode}`, limit: Number(numBusinesses),};
         const toQueryString = (params) => new URLSearchParams(params).toString();  // formats the data into a string
 
         try {
             // calls the API
-            const response = await fetch(
+            const response = await FetchWithTimeout(
                 `https://api.openwebninja.com/local-business-data/search?${toQueryString(params)}`,
                 {
                     headers: {
@@ -192,12 +228,28 @@ export default function Home() {
             );
 
             const api_data = await response.json();
+            if (!api_data.data || api_data.data.length === 0) {
+                toast.error("Search failed, likely due to invalid zipcode")
+                setLoading(false);
+                return;
+            }
+
             var filtered_data = []
             var business_ids = []
             
             // takes the api data and puts it into filtered_data
-            api_data.data.forEach(element => { 
+            for (const element of api_data.data) {
                 var business = {}
+
+                // If the business's Zipcode is far from expected, remove it (API error)
+                var businessZipcodeInt = parseInt(element.address.slice(-5));
+                if (!isNaN(businessZipcodeInt)) {
+                    if (businessZipcodeInt + 5000 < parseInt(zipcode) || businessZipcodeInt - 5000 > parseInt(zipcode)){
+                        continue;
+                    }
+                }
+
+                
                 business.id = element.business_id;
                 business.photo_url = element.photos_sample?.[0]?.photo_url_large;
                 business.address = element.address;
@@ -207,7 +259,7 @@ export default function Home() {
 
                 business_ids.push(element.business_id)
                 filtered_data.push(business)
-            });
+            };
 
             // gets review data from LocalBizExplorer's database (not the api)
             const res = await api.post(
@@ -230,7 +282,8 @@ export default function Home() {
 
         } catch (err) {
             // Catch all for errors (ie. Rate limited by API)
-            console.error("API call failed:", err);
+            toast.error("Timed out after 10 seconds, please reload the page and try again.")
+            setLoading(false);
         }
     };
 
@@ -271,6 +324,7 @@ export default function Home() {
                             ref={businessTypeRef}
                             className="form-control"
                             placeholder="Business Sector (ie. Library)"
+                            defaultValue={businessTypeSearched}
                         />
                         {errors.businessType && <p className="text-danger">{errors.businessType}</p>}
                     </div>
@@ -281,6 +335,7 @@ export default function Home() {
                             type="text"
                             className="form-control"
                             placeholder="Zipcode (ie. 05488)"
+                            defaultValue={businessLocationSearched}
                         />
                         {errors.zipcode && <p className="text-danger">{errors.zipcode}</p>}
                     </div>
@@ -291,6 +346,7 @@ export default function Home() {
                             type="number"
                             className="form-control"
                             placeholder="Number of Businesses to Display (max: 10)"
+                            defaultValue={numBusinessesSearched}
                         />
                         {errors.numBusinesses && <p className="text-danger">{errors.numBusinesses}</p>}
                     </div>

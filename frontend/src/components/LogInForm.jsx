@@ -11,16 +11,25 @@ function LogInForm() {
 
     const handleLogin = async ({ username, password }) => {
         try {
-            const res = await api.post("api/token/", { username, password });
+            const res = await api.post(
+                "api/token/",
+                { username, password },
+                { timeout: 10000 } // 10 seconds in milliseconds
+            );
+
             localStorage.setItem(ACCESS_TOKEN, res.data.access);
             localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
 
-            toast.success("Logged in successfully!")
+            toast.success("Logged in successfully!");
             navigate('/'); // go to the homescreen
         } catch (err) {
-            const data = err.response?.data;
-            if (data?.detail) toast.error("Incorrect username or password");  
-            else toast.error("An unknown error occurred"); 
+            if (err.code === 'ECONNABORTED') {
+                toast.error("Request timed out. Please reload the page and try again.");
+            } else {
+                const data = err.response?.data;
+                if (data?.detail) toast.error("Incorrect username or password");  
+                else toast.error("An unknown error occurred"); 
+            }
         }
     };
 

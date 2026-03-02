@@ -49,7 +49,7 @@ function BusinessDisplay({ business, resetView = null }) {
     const centerX = pageWidth / 2;
     const pageHeight = 280;
 
-    // === Header ===
+    // Header
     doc.setFontSize(18);
     doc.setFont("helvetica", "bold");
     doc.text("Business Report", centerX, 15, { align: "center" });
@@ -67,38 +67,56 @@ function BusinessDisplay({ business, resetView = null }) {
     doc.text("Reviews", centerX, 75, { align: "center" });
     let y = 85;
     
+    const lineHeight = 7;   // space between lines
+    const boxWidth = 190;
+    const marginX = 10;
+    const textX = 15;
+
     if (reviews.length === 0) {
       doc.setFontSize(12);
       doc.text("No reviews yet.", 10, y);
     } else {
-      for (let i = 0; i < reviews.length; i++) {
-        const r = reviews[i];
+        for (let i = 0; i < reviews.length; i++) {
+          const r = reviews[i];
 
-        // Page break if needed
-        if (y > pageHeight) {
-          doc.addPage();
-          y = 20;
+          // Format review text and split to fit width
+          const reviewText = "Review: " + r.review_text;
+          const splitText = doc.splitTextToSize(reviewText, 170);
+
+          // Calculate dynamic box height (20 for reviewer/rating, 10 for date)
+          const boxHeight = 20 + splitText.length * lineHeight + 10;                       
+
+          // Page break is needed
+          if (y + boxHeight > pageHeight - 10) {
+            doc.addPage();
+            y = 20;
+          }
+
+          // Draw box around review
+          doc.setDrawColor(0);
+          doc.setLineWidth(0.5);
+          doc.rect(marginX, y - 5, boxWidth, boxHeight, "S");
+
+          // Reviewer Name
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "bold");
+          doc.text(`Reviewer: ${r.name}`, textX, y);
+
+          // Rating
+          doc.setFontSize(11);
+          doc.setFont("helvetica", "normal");
+          doc.text(`Rating: ${r.rating}/5`, textX, y + lineHeight);
+
+          // Review Text (wrapped)
+          doc.text(splitText, textX, y + lineHeight * 2);
+
+          // Date
+          doc.setFontSize(10);
+          doc.text(`Posted: ${new Date(r.created_at).toLocaleString()}`, textX, y + lineHeight * 2 + splitText.length * lineHeight);
+
+          // Move Y for next review
+          y += boxHeight + 10;
         }
-
-        // Draw a box around each review
-        doc.setDrawColor(0);
-        doc.setLineWidth(0.5);
-        doc.rect(10, y - 5, 190, 35, "S"); // x, y, width, height
-
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text(`Reviewer: ${r.name}`, 15, y);
-
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "normal");
-        doc.text(`Rating: ${r.rating}/5`, 15, y + 7);
-        const splitText = doc.splitTextToSize(r.review_text, 170);
-        doc.text(`Review: ${splitText}`, 15, y + 14);
-        doc.setFontSize(10);
-        doc.text(`Posted: ${new Date(r.created_at).toLocaleString()}`, 15, y + 14 + splitText.length * 7);
-
-        y += 45 + splitText.length * 7; // space for next review
-      }
     }
 
     doc.save(`${business.name}-report.pdf`);
